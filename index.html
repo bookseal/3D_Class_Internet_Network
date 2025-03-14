@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP/IP Protocol Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            background-color: #f5f5f5;
+            overflow: hidden;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        h1 {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            margin: 0;
+            font-size: 28px;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        #layer-labels {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .layer-label {
+            padding: 8px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .layer-label:hover {
+            transform: translateX(5px);
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: #777;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading visualization...</div>
+    <h1>TCP/IP Protocol Stack Visualization</h1>
+    <div id="canvas-container"></div>
+    
+    <div id="layer-labels">
+        <div class="layer-label" id="application-label" style="background-color: rgba(255, 99, 71, 0.7); color: white;">Application Layer</div>
+        <div class="layer-label" id="transport-label" style="background-color: rgba(255, 165, 0, 0.7); color: white;">Transport Layer</div>
+        <div class="layer-label" id="internet-label" style="background-color: rgba(106, 90, 205, 0.7); color: white;">Internet Layer</div>
+        <div class="layer-label" id="network-label" style="background-color: rgba(60, 179, 113, 0.7); color: white;">Network Access Layer</div>
+    </div>
+    
+    <div id="info-panel">
+        <span class="close-btn">&times;</span>
+        <h2 id="info-title">Layer Information</h2>
+        <div id="info-content"></div>
+    </div>
+    
+    <div id="controls">
+        <button id="start-animation">Start Data Transfer</button>
+        <button id="reset-animation">Reset</button>
+    </div>
+
+    <script>
+        // Layer information
+        const layerInfo = {
+            'application': {
+                title: 'Application Layer',
+                content: `
+                    <p>The Application Layer is the topmost layer in the TCP/IP model, closest to the end-user. It provides network services directly to applications.</p>
+                    <h3>Functions:</h3>
+                    <ul>
+                        <li>Provides interfaces for applications to use network services</li>
+                        <li>Handles data formatting and encoding</li>
+                        <li>Manages dialog and session between applications</li>
+                    </ul>
+                    <h3>Key Protocols:</h3>
+                    <ul>
+                        <li>HTTP/HTTPS (Web browsing)</li>
+                        <li>FTP (File transfer)</li>
+                        <li>SMTP/POP3/IMAP (Email)</li>
+                        <li>DNS (Domain name resolution)</li>
+                        <li>SSH (Secure remote access)</li>
+                    </ul>
+                    <p>At this layer, user data (like web page requests or email content) is in its original form before any network-specific formatting is applied.</p>
+                `
+            },
+            'transport': {
+                title: 'Transport Layer',
+                content: `
+                    <p>The Transport Layer provides end-to-end communication services for applications, handling data segmentation, flow control, and error recovery.</p>
+                    <h3>Functions:</h3>
+                    <ul>
+                        <li>Segments data from application layer</li>
+                        <li>Establishes, maintains, and terminates connections</li>
+                        <li>Handles flow control to prevent network congestion</li>
+                        <li>Provides error detection and recovery</li>
+                        <li>Ensures reliable data delivery (TCP only)</li>
+                    </ul>
+                    <h3>Key Protocols:</h3>
+                    <ul>
+                        <li>TCP (Transmission Control Protocol) - Connection-oriented, reliable</li>
+                        <li>UDP (User Datagram Protocol) - Connectionless, faster but less reliable</li>
+                    </ul>
+                    <p>This layer adds a header to the data that includes source and destination port numbers, sequence numbers (TCP), and checksum values for error detection.</p>
+                `
+            },
+            'internet': {
+                title: 'Internet Layer',
+                content: `
+                    <p>The Internet Layer handles packet routing and logical addressing across different networks.</p>
+                    <h3>Functions:</h3>
+                    <ul>
+                        <li>Logical addressing (IP addresses)</li>
+                        <li>Routing packets across networks</li>
+                        <li>Fragmentation and reassembly of packets</li>
+                        <li>Error reporting and diagnostics</li>
+                    </ul>
+                    <h3>Key Protocols:</h3>
+                    <ul>
+                        <li>IP (Internet Protocol) - IPv4 and IPv6</li>
+                        <li>ICMP (Internet Control Message Protocol) - Error reporting</li>
+                        <li>ARP (Address Resolution Protocol) - Maps IP to MAC addresses</li>
+                        <li>IGMP (Internet Group Management Protocol) - Multicast group management</li>
+                    </ul>
+                    <p>This layer adds an IP header containing source and destination IP addresses, time-to-live values, and other routing information.</p>
+                `
+            },
+            'network': {
+                title: 'Network Access Layer',
+                content: `
+                    <p>The Network Access Layer (also called Link Layer or Network Interface Layer) is the lowest layer in the TCP/IP model, handling the physical transmission of data.</p>
+                    <h3>Functions:</h3>
+                    <ul>
+                        <li>Physical addressing (MAC addresses)</li>
+                        <li>Media access control and data framing</li>
+                        <li>Signal transmission, bit synchronization</li>
+                        <li>Hardware addressing and topology</li>
+                        <li>Error detection at hardware level</li>
+                    </ul>
+                    <h3>Key Technologies:</h3>
+                    <ul>
+                        <li>Ethernet</li>
+                        <li>Wi-Fi (802.11)</li>
+                        <li>PPP (Point-to-Point Protocol)</li>
+                        <li>DSL (Digital Subscriber Line)</li>
+                        <li>Fiber optic protocols</li>
+                    </ul>
+                    <p>This layer adds a header and trailer to the data, creating a frame that includes physical addressing information and error-checking codes.</p>
+                `
+            }
+        };
+
+        // Wait for the page to load
+        window.addEventListener('load', function() {
+            // Three.js variables
+            let scene, camera, renderer;
+            let layers = {};
+            let dataPacket;
+            let animationInProgress = false;
+            let packetTween;
+            let sparkleParticles;
+            let sparkleSystem;
+
+            // Set up Three.js scene
+            function init() {
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf0f0f0);
+
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 0, 10);
+
+                // Create renderer
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+                // Add ambient light
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+
+                // Add directional light
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                scene.add(directionalLight);
+
+                // Create TCP/IP layers
+                createLayers();
+
+                // Create data packet
+                createDataPacket();
+                
+                // Add particle system for sparkling effect
+                createSparkles();
+
+                // Add window resize listener
+                window.addEventListener('resize', onWindowResize);
+
+                // Set up Raycaster for interaction
+                setupRaycaster();
+
+                // Hide loading screen
+                document.getElementById('loading').style.display = 'none';
+
+                // Start animation loop
+                animate();
+            }
+
+            // Create the TCP/IP layer boxes
+            function createLayers() {
+                const layerHeight = 1.2;
+                const layerWidth = 5;
+                const layerDepth = 3;
+                const spacing = 0.3;
+                
+                // Colors for each layer
+                const colors = {
+                    application: 0xff6347, // Tomato
+                    transport: 0xffa500,   // Orange
+                    internet: 0x6a5acd,    // Slate Blue
+                    network: 0x3cb371      // Medium Sea Green
+                };
+
+                // Position for the topmost layer
+                const startY = (layerHeight + spacing) * 1.5;
+                
+                // Create each layer
+                const layerNames = ['application', 'transport', 'internet', 'network'];
+                
+                layerNames.forEach((name, index) => {
+                    const y = startY - (layerHeight + spacing) * index;
+                    
+                    // Create layer geometry with rounded edges and material
+                    // Using RoundedBoxGeometry from external library for rounded corners
+                    const geometry = new THREE.BoxGeometry(layerWidth, layerHeight, layerDepth, 8, 8, 8);
+                    
+                    // Apply bevel to the geometry edges to make them rounded
+                    const edges = new THREE.EdgesGeometry(geometry);
+                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
+                    
+                    const material = new THREE.MeshPhongMaterial({ 
+                        color: colors[name],
+                        transparent: true,
+                        opacity: 0.6,  // More transparent
+                        shininess: 100,
+                        specular: 0x444444
+                    });
+                    
+                    // Create mesh
+                    const layer = new THREE.Mesh(geometry, material);
+                    layer.position.set(0, y, 0);
+                    layer.userData = { type: 'layer', name: name };
+                    
+                    // Add line segments for edge highlighting
+                    layer.add(line);
+                    
+                    // Add to scene and store reference
+                    scene.add(layer);
+                    layers[name] = layer;
+                });
+            }
+
+            // Create the data packet
+            function createDataPacket() {
+                // Use sphere for round shape
+                const geometry = new THREE.SphereGeometry(0.4, 32, 32);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.7,  // More transparent
+                    emissive: 0x4444ff,
+                    emissiveIntensity: 0.6,
+                    shininess: 90,
+                    specular: 0x8888ff
+                });
+                
+                dataPacket = new THREE.Mesh(geometry, material);
+                
+                // Position packet above the top layer initially (hidden)
+                dataPacket.position.set(0, 10, 0);
+                dataPacket.visible = false;
+                
+                // Add to scene
+                scene.add(dataPacket);
+            }
+            
+            // Create sparkling effect with particle system
+            function createSparkles() {
+                // Create particle geometry
+                const particleCount = 200;
+                const particles = new THREE.BufferGeometry();
+                
+                // Create positions array
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                const sizes = new Float32Array(particleCount);
+                
+                // Create particles with random positions around the scene
+                for (let i = 0; i < particleCount; i++) {
+                    // Random positions within a certain range
+                    const x = (Math.random() - 0.5) * 10;
+                    const y = (Math.random() - 0.5) * 10;
+                    const z = (Math.random() - 0.5) * 10;
+                    
+                    positions[i * 3] = x;
+                    positions[i * 3 + 1] = y;
+                    positions[i * 3 + 2] = z;
+                    
+                    // Random colors with bias towards blue and white
+                    colors[i * 3] = Math.random() * 0.5 + 0.5; // R: 0.5-1.0
+                    colors[i * 3 + 1] = Math.random() * 0.5 + 0.5; // G: 0.5-1.0
+                    colors[i * 3 + 2] = Math.random() * 0.2 + 0.8; // B: 0.8-1.0
+                    
+                    // Random sizes
+                    sizes[i] = Math.random() * 0.05 + 0.01;
+                }
+                
+                particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                // Create particle material
+                const particleMaterial = new THREE.PointsMaterial({
+                    size: 0.1,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending,
+                    sizeAttenuation: true
+                });
+                
+                // Create particle system
+                sparkleSystem = new THREE.Points(particles, particleMaterial);
+                sparkleParticles = positions;
+                
+                // Add to scene
+                scene.add(sparkleSystem);
+            }
+
+            // Handle window resizing
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Update tweens
+                TWEEN.update();
+                
+                // Rotate layers slightly
+                Object.values(layers).forEach(layer => {
+                    layer.rotation.y += 0.002;
+                });
+                
+                // Animate sparkles
+                if (sparkleSystem) {
+                    // Make sparkles twinkle by changing their positions and sizes
+                    const positions = sparkleSystem.geometry.attributes.position.array;
+                    const sizes = sparkleSystem.geometry.attributes.size.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        // Slightly move particles
+                        positions[i] += Math.sin(Date.now() * 0.001 + i) * 0.002;
+                        positions[i + 1] += Math.cos(Date.now() * 0.0015 + i) * 0.002;
+                        positions[i + 2] += Math.sin(Date.now() * 0.001 + i) * 0.002;
+                        
+                        // Make particles twinkle by changing their size
+                        const sizeIndex = i / 3;
+                        sizes[sizeIndex] = (Math.sin(Date.now() * 0.004 + sizeIndex) + 1.5) * 0.03;
+                    }
+                    
+                    sparkleSystem.geometry.attributes.position.needsUpdate = true;
+                    sparkleSystem.geometry.attributes.size.needsUpdate = true;
+                    
+                    // Slowly rotate the entire particle system
+                    sparkleSystem.rotation.y += 0.0005;
+                    sparkleSystem.rotation.x += 0.0002;
+                }
+                
+                // Render scene
+                renderer.render(scene, camera);
+            }
+
+            // Set up raycaster for interactivity
+            function setupRaycaster() {
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+                
+                // Add click event listener
+                renderer.domElement.addEventListener('click', (event) => {
+                    // Calculate mouse position in normalized device coordinates
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    
+                    // Update raycaster
+                    raycaster.setFromCamera(mouse, camera);
+                    
+                    // Find intersections
+                    const intersects = raycaster.intersectObjects(scene.children);
+                    
+                    if (intersects.length > 0) {
+                        const object = intersects[0].object;
+                        
+                        // Check if clicked on a layer
+                        if (object.userData && object.userData.type === 'layer') {
+                            showLayerInfo(object.userData.name);
+                        }
+                    }
+                });
+            }
+
+            // Show layer information in the panel
+            function showLayerInfo(layerName) {
+                const infoPanel = document.getElementById('info-panel');
+                const infoTitle = document.getElementById('info-title');
+                const infoContent = document.getElementById('info-content');
+                
+                const info = layerInfo[layerName];
+                
+                infoTitle.textContent = info.title;
+                infoContent.innerHTML = info.content;
+                
+                infoPanel.style.display = 'block';
+            }
+
+            // Animate data packet through TCP/IP layers
+            function animatePacket() {
+                if (animationInProgress) return;
+                animationInProgress = true;
+                
+                // Reset packet
+                dataPacket.scale.set(1, 1, 1);
+                
+                // Make packet visible and position above application layer
+                dataPacket.visible = true;
+                dataPacket.position.set(-2.5, layers.application.position.y + 2, 0);
+                
+                // Create animation sequence
+                const startDelay = 500; // ms
+                
+                // Animation durations
+                const moveDownDuration = 1000;
+                const passThroughDuration = 1500;
+                const waitDuration = 500;
+                
+                // Create a timeline of animations
+                
+                // 1. Move down to application layer
+                new TWEEN.Tween(dataPacket.position)
+                    .to({ y: layers.application.position.y }, moveDownDuration)
+                    .delay(startDelay)
+                    .easing(TWEEN.Easing.Bounce.Out)
+                    .start()
+                    .onComplete(() => {
+                        // 2. Pass through application layer
+                        new TWEEN.Tween(dataPacket.position)
+                            .to({ x: 0 }, passThroughDuration)
+                            .easing(TWEEN.Easing.Sinusoidal.InOut)
+                            .start()
+                            .onComplete(() => {
+                                // Change appearance (add header)
+                                dataPacket.scale.set(1.2, 1, 1);
+                                dataPacket.material.color.setHex(0xffffff);
+                                dataPacket.material.emissive.setHex(0xff6347); // Color matching application layer
+                                
+                                // 3. Move to transport layer
+                                new TWEEN.Tween(dataPacket.position)
+                                    .to({ y: layers.transport.position.y }, moveDownDuration)
+                                    .delay(waitDuration)
+                                    .easing(TWEEN.Easing.Quadratic.InOut)
+                                    .start()
+                                    .onComplete(() => {
+                                        // 4. Pass through transport layer
+                                        new TWEEN.Tween(dataPacket.position)
+                                            .to({ x: 0 }, passThroughDuration)
+                                            .easing(TWEEN.Easing.Sinusoidal.InOut)
+                                            .start()
+                                            .onComplete(() => {
+                                                // Change appearance (add header)
+                                                dataPacket.scale.set(1.5, 1, 1);
+                                                dataPacket.material.emissive.setHex(0xffa500); // Color matching transport layer
+                                                dataPacket.material.opacity = 0.75; // Even more transparent
+                                                
+                                                // 5. Move to internet layer
+                                                new TWEEN.Tween(dataPacket.position)
+                                                    .to({ y: layers.internet.position.y }, moveDownDuration)
+                                                    .delay(waitDuration)
+                                                    .easing(TWEEN.Easing.Quadratic.InOut)
+                                                    .start()
+                                                    .onComplete(() => {
+                                                        // 6. Pass through internet layer
+                                                        new TWEEN.Tween(dataPacket.position)
+                                                            .to({ x: 0 }, passThroughDuration)
+                                                            .easing(TWEEN.Easing.Sinusoidal.InOut)
+                                                            .start()
+                                                            .onComplete(() => {
+                                                                // Change appearance (add header)
+                                                                dataPacket.scale.set(1.7, 1, 1);
+                                                                dataPacket.material.emissive.setHex(0x6a5acd); // Color matching internet layer
+                                                                dataPacket.material.opacity = 0.7; // More transparent
+                                                                
+                                                                // 7. Move to network layer
+                                                                new TWEEN.Tween(dataPacket.position)
+                                                                    .to({ y: layers.network.position.y }, moveDownDuration)
+                                                                    .delay(waitDuration)
+                                                                    .easing(TWEEN.Easing.Quadratic.InOut)
+                                                                    .start()
+                                                                    .onComplete(() => {
+                                                                        // 8. Pass through network layer
+                                                                        new TWEEN.Tween(dataPacket.position)
+                                                                            .to({ x: 0 }, passThroughDuration)
+                                                                            .easing(TWEEN.Easing.Sinusoidal.InOut)
+                                                                            .start()
+                                                                            .onComplete(() => {
+                                                                                // Change appearance (add frame header and trailer)
+                                                                                dataPacket.scale.set(2.0, 1, 1);
+                                                                                dataPacket.material.emissive.setHex(0x3cb371); // Color matching network layer
+                                                                                dataPacket.material.opacity = 0.65; // Most transparent at final layer
+                                                                                
+                                                                                // 9. Exit system (move right)
+                                                                                packetTween = new TWEEN.Tween(dataPacket.position)
+                                                                                    .to({ x: 3 }, moveDownDuration)
+                                                                                    .delay(waitDuration)
+                                                                                    .easing(TWEEN.Easing.Quadratic.In)
+                                                                                    .start()
+                                                                                    .onComplete(() => {
+                                                                                        animationInProgress = false;
+                                                                                    });
+                                                                            });
+                                                                    });
+                                                            });
+                                                    });
+                                            });
+                                    });
+                            });
+                    });
+            }
+
+            // Reset animation
+            function resetAnimation() {
+                // Stop any running tweens
+                TWEEN.removeAll();
+                
+                // Hide packet
+                dataPacket.visible = false;
+                
+                // Reset animation flag
+                animationInProgress = false;
+            }
+
+            // Event listeners for buttons
+            document.getElementById('start-animation').addEventListener('click', animatePacket);
+            document.getElementById('reset-animation').addEventListener('click', resetAnimation);
+
+            // Event listeners for layer labels
+            document.querySelectorAll('.layer-label').forEach(label => {
+                label.addEventListener('click', function() {
+                    const layerName = this.id.split('-')[0]; // Extract layer name from ID
+                    showLayerInfo(layerName);
+                });
+            });
+
+            // Close info panel
+            document.querySelector('.close-btn').addEventListener('click', function() {
+                document.getElementById('info-panel').style.display = 'none';
+            });
+
+            // Initialize Three.js scene
+            init();
+        });
+    </script>
+</body>
+</html>
